@@ -1,0 +1,17 @@
+{
+  "name": "facesymai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Facial symmetry analysis for stroke-warning decision support research.",
+  "scripts": {
+    "lint": "scripts/run_in_project_env.sh python -m ruff check src scripts tests",
+    "lint:fix": "scripts/run_in_project_env.sh python -m ruff check src scripts tests --fix",
+    "lint:syntax": "scripts/run_in_project_env.sh python -m compileall -q src scripts tests",
+    "test": "scripts/run_in_project_env.sh python -m pytest -q",
+    "check": "npm run lint && npm run test",
+    "serve:label": "scripts/run_in_project_env.sh python scripts/serve_face_asymmetry_label_tool.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "attribution_row_count": 12705,
+  "false_positive_count": 63,
+  "feature_count": 21,
+  "input_format": {
+    "excluded_inputs": [
+      "video",
+      "tongue image",
+      "medical record image",
+      "auxiliary exam image"
+    ],
+    "image_extensions": [
+      ".jpg",
+      ".jpeg",
+      ".png"
+    ],
+    "legacy_compatible_roles": [
+      "smile",
+      "teeth"
+    ],
+    "mediapipe_required_outputs": {
+      "blendshapes": 52,
+      "facial_transformation_matrixes": ">=1",
+      "raw_landmarks": 478
+    },
+    "minimum_inference_fields": [
+      "patient_sample_id",
+      "media_role",
+      "image_path"
+    ],
+    "recommended_roles": [
+      "front_contour/front",
+      "smile_teeth or smile+teeth",
+      "eyes_right"
+    ],
+    "required_roles": [
+      "smile_teeth"
+    ],
+    "unit": "patient image set",
+    "validation_label_fields": [
+      "label_group",
+      "label_binary"
+    ]
+  },
+  "metrics": [
+    {
+      "actual_negative_count": "227",
+      "actual_positive_count": "378",
+      "balanced_accuracy": "0.652239",
+      "dataset_scope": "combined",
+      "f1": "0.665658",
+      "fn": "158",
+      "fp": "63",
+      "patient_count": "605",
+      "precision": "0.777385",
+      "predicted_negative_count": "322",
+      "predicted_positive_count": "283",
+      "recall": "0.582011",
+      "specificity": "0.722467",
+      "tn": "164",
+      "tp": "220",
+      "youden_j": "0.304478"
+    },
+    {
+      "actual_negative_count": "168",
+      "actual_positive_count": "336",
+      "balanced_accuracy": "0.638393",
+      "dataset_scope": "old",
+      "f1": "0.696370",
+      "fn": "125",
+      "fp": "59",
+      "patient_count": "504",
+      "precision": "0.781481",
+      "predicted_negative_count": "234",
+      "predicted_positive_count": "270",
+      "recall": "0.627976",
+      "specificity": "0.648810",
+      "tn": "109",
+      "tp": "211",
+      "youden_j": "0.276786"
+    },
+    {
+      "actual_negative_count": "59",
+      "actual_positive_count": "42",
+      "balanced_accuracy": "0.573245",
+      "dataset_scope": "new",
+      "f1": "0.327273",
+      "fn": "33",
+      "fp": "4",
+      "patient_count": "101",
+      "precision": "0.692308",
+      "predicted_negative_count": "88",
+      "predicted_positive_count": "13",
+      "recall": "0.214286",
+      "specificity": "0.932203",
+      "tn": "55",
+      "tp": "9",
+      "youden_j": "0.146489"
+    }
+  ],
+  "new_dataset": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_warning_app_rule_test_set_20260508",
+  "old_dataset": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/facesym_v1_all_images_no_gate_20260119",
+  "patient_count": 605,
+  "predicted_positive_by_dataset": {
+    "new": 13,
+    "old": 270
+  },
+  "predicted_positive_count": 283,
+  "rule_definition": "Use all distinct recommended features. Each feature has its own threshold and stability/nonpatient-aware weight; disease tendency is predicted from weighted triggered score.",
+  "score_threshold": "0.612826",
+  "score_threshold_policy": "combined_patient_level_max_youden",
+  "score_threshold_policy_description": "在旧+新全部患者级加权得分上搜索阈值，按 Youden J、balanced accuracy、F1、precision、specificity、score_threshold 依次择优。",
+  "top_high_weight_features": [
+    {
+      "feature_name": "bsdiff_mouth_abs",
+      "feature_weight": "0.057616",
+      "nonpatient_false_positive_rate": "0.269912",
+      "threshold": "0.003855",
+      "volatility_score": "0.273402",
+      "weight_grade": "high"
+    },
+    {
+      "feature_name": "bsdiff_mouth_lateral_abs",
+      "feature_weight": "0.057616",
+      "nonpatient_false_positive_rate": "0.269912",
+      "threshold": "0.003855",
+      "volatility_score": "0.273402",
+      "weight_grade": "high"
+    },
+    {
+      "feature_name": "bsdiff_browDown_abs",
+      "feature_weight": "0.054691",
+      "nonpatient_false_positive_rate": "0.475771",
+      "threshold": "0.013388",
+      "volatility_score": "0.534065",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "raw_lip_midline_deviation",
+      "feature_weight": "0.054497",
+      "nonpatient_false_positive_rate": "0.314159",
+      "threshold": "0.008995",
+      "volatility_score": "0.301043",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "raw_iris_region_point_spread_asym",
+      "feature_weight": "0.051983",
+      "nonpatient_false_positive_rate": "0.464602",
+      "threshold": "0.009759",
+      "volatility_score": "0.336346",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "bsdiff_mouthFrown_abs",
+      "feature_weight": "0.051817",
+      "nonpatient_false_positive_rate": "0.548673",
+      "threshold": "0.000216",
+      "volatility_score": "0.175977",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "raw_face_oval_region_height_asym",
+      "feature_weight": "0.051482",
+      "nonpatient_false_positive_rate": "0.211454",
+      "threshold": "0.017991",
+      "volatility_score": "0.302397",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "raw_all_mesh_region_height_asym",
+      "feature_weight": "0.051269",
+      "nonpatient_false_positive_rate": "0.215859",
+      "threshold": "0.017991",
+      "volatility_score": "0.306208",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "raw_iris_region_area_asym",
+      "feature_weight": "0.047742",
+      "nonpatient_false_positive_rate": "0.438053",
+      "threshold": "0.019940",
+      "volatility_score": "0.277184",
+      "weight_grade": "medium"
+    },
+    {
+      "feature_name": "raw_eyebrow_region_height_asym",
+      "feature_weight": "0.047351",
+      "nonpatient_false_positive_rate": "0.634361",
+      "threshold": "0.036786",
+      "volatility_score": "0.234978",
+      "weight_grade": "medium"
+    }
+  ],
+  "warning": "Labels are patient outcome weak labels. This is not a clinical diagnosis rule.",
+  "weight_policy": {
+    "combined_auc_score": "combined directional AUC, scaled above random baseline",
+    "image_count_score": "log image count factor",
+    "nonpatient_specificity_score": "minimum old/new/combined specificity at the feature threshold",
+    "separation_score": "old/new min directional AUC, scaled above random baseline",
+    "volatility_score": "image-level robust volatility penalty from IQR, robust CV, and patient median gap"
+  }
+}

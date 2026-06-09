@@ -1,0 +1,4 @@
+﻿dataset_scope,patient_count,tp,fp,tn,fn,precision,recall,specificity,f1,balanced_accuracy,youden_j,predicted_positive_count,predicted_negative_count,actual_positive_count,actual_negative_count
+combined,605,220,63,164,158,0.777385,0.582011,0.722467,0.665658,0.652239,0.304478,283,322,378,227
+old,504,211,59,109,125,0.781481,0.627976,0.648810,0.696370,0.638393,0.276786,270,234,336,168
+new,101,9,4,55,33,0.692308,0.214286,0.932203,0.327273,0.573245,0.146489,13,88,42,59

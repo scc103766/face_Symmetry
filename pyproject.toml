@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "facesymai"
+version = "0.1.0"
+description = "Facial symmetry analysis for stroke-warning decision support research."
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.23",
+    "Pillow>=9",
+]
+
+[project.optional-dependencies]
+vision = [
+    "mediapipe>=0.10",
+    "opencv-python>=4.8",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

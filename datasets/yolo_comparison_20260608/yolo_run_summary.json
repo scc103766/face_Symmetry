@@ -1,0 +1,87 @@
+{
+  "any_stroke_images": 1183,
+  "class_distribution": {
+    "normalEye": 52,
+    "normalMouth": 271,
+    "strokeEyeMid": 252,
+    "strokeEyeSevere": 438,
+    "strokeEyeWeak": 195,
+    "strokeMouthMid": 309,
+    "strokeMouthSevere": 317,
+    "strokeMouthWeak": 389
+  },
+  "conf": 0.25,
+  "created_at": "2026-06-08T15:22:25",
+  "device": "cpu",
+  "elapsed_seconds": 41.232,
+  "empty_detection_count": 231,
+  "error_distribution": {
+    "ValueError: need at least one array to stack": 3
+  },
+  "eye_max_severity_distribution": {
+    "mid": 224,
+    "none": 678,
+    "normal": 44,
+    "severe": 438,
+    "weak": 162
+  },
+  "failed_images": [
+    {
+      "image_path": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_patient_outcome_by_name_20260119/不患病/姜新民__pid725/images/row0020_pid725_collect876__front_01.jpg",
+      "patient_id": "725",
+      "patient_label": "不患病",
+      "role": "front",
+      "split": "test",
+      "yolo_error": "ValueError: need at least one array to stack"
+    },
+    {
+      "image_path": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_patient_outcome_by_name_20260119/不患病/张秋珍__pid535/images/row0200_pid535_collect672__front_01.jpg",
+      "patient_id": "535",
+      "patient_label": "不患病",
+      "role": "front",
+      "split": "train",
+      "yolo_error": "ValueError: need at least one array to stack"
+    },
+    {
+      "image_path": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_patient_outcome_by_name_20260119/患病/李桂香__pid750/images/row0008_pid750_collect901__front_01.jpg",
+      "patient_id": "750",
+      "patient_label": "患病",
+      "role": "front",
+      "split": "train",
+      "yolo_error": "ValueError: need at least one array to stack"
+    }
+  ],
+  "failure_count": 3,
+  "images_by_patient_label": {
+    "不患病": 512,
+    "患病": 1034
+  },
+  "images_by_role": {
+    "front": 516,
+    "smile": 513,
+    "teeth": 517
+  },
+  "images_by_split": {
+    "test": 234,
+    "train": 1079,
+    "val": 233
+  },
+  "limit": null,
+  "manifest_images_before_limit": 1546,
+  "manifest_path": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/facesym_v1_by_name_20260119/metadata/01_manifest.csv",
+  "model_path": "/supercloud/llm-code/scc/scc/FaceSymAi/third_party/stroke_detection_yolo/best.pt",
+  "mouth_max_severity_distribution": {
+    "mid": 270,
+    "none": 421,
+    "normal": 219,
+    "severe": 316,
+    "weak": 320
+  },
+  "output_csv": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/yolo_comparison_20260608/yolo_per_image_predictions.csv",
+  "patients": 505,
+  "run_log": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/yolo_comparison_20260608/run.log",
+  "splits_path": "/supercloud/llm-code/scc/scc/FaceSymAi/datasets/facesym_v1_by_name_20260119/metadata/05_patient_splits.csv",
+  "success_count": 1543,
+  "total_detections": 2223,
+  "total_images": 1546
+}

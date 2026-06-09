@@ -1,0 +1,1 @@
+-r ../mediapipe_face_keypoint_detector/requirements.txt

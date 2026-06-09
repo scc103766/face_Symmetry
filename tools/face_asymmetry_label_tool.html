@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FaceSymAi 人工面部对称性标注</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f4ef;
+        --panel: #ffffff;
+        --line: #d8d3c8;
+        --text: #1f2428;
+        --muted: #667085;
+        --accent: #006d77;
+        --accent-soft: #d8f0ee;
+        --warn: #9a3412;
+        --danger: #b42318;
+        --ok: #157347;
+        --ink: #243447;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--text);
+        border-radius: 6px;
+        cursor: pointer;
+        min-height: 36px;
+        padding: 8px 12px;
+      }
+
+      button:hover {
+        border-color: var(--accent);
+      }
+
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #ffffff;
+      }
+
+      button.danger {
+        color: var(--danger);
+        border-color: #f0b5ad;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--line);
+        background: #fbfaf7;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .brand {
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.3;
+      }
+
+      .subtle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metric {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px;
+        min-height: 54px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 18px;
+      }
+
+      .filters {
+        display: grid;
+        gap: 8px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: var(--text);
+        min-height: 36px;
+        padding: 7px 9px;
+      }
+
+      textarea {
+        min-height: 84px;
+        resize: vertical;
+      }
+
+      .case-list {
+        overflow: auto;
+        padding: 8px;
+      }
+
+      .case-row {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        gap: 4px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        min-height: 70px;
+      }
+
+      .case-row.active {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .case-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .main {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .topbar h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .content {
+        overflow: auto;
+        padding: 16px 18px 24px;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .section-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .section-header h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .section-body {
+        padding: 14px;
+      }
+
+      .image-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .image-tile {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #111827;
+        min-height: 180px;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .image-title {
+        padding: 7px 9px;
+        background: #ffffff;
+        color: var(--ink);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .image-tile button {
+        display: block;
+        min-height: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: #111827;
+      }
+
+      .image-tile img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 180px;
+        max-height: 320px;
+        object-fit: contain;
+      }
+
+      .empty-image {
+        min-height: 180px;
+        display: grid;
+        place-items: center;
+        color: #cbd5e1;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid var(--line);
+        background: #ffffff;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .badge.red {
+        color: var(--danger);
+        border-color: #f0b5ad;
+        background: #fff5f3;
+      }
+
+      .badge.green {
+        color: var(--ok);
+        border-color: #acd8bf;
+        background: #f1fbf5;
+      }
+
+      .badge.orange {
+        color: var(--warn);
+        border-color: #f3c19d;
+        background: #fff7ed;
+      }
+
+      .field-group {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .field-group label {
+        font-weight: 600;
+      }
+
+      .choice-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .choice-grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .choice-grid input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .choice-grid span {
+        display: grid;
+        min-height: 46px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        text-align: center;
+        padding: 8px;
+      }
+
+      .choice-grid input:checked + span {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: #004f55;
+        font-weight: 700;
+      }
+
+      .score-grid {
+        display: grid;
+        gap: 9px;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 104px minmax(0, 1fr) 64px;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .bar {
+        height: 9px;
+        border-radius: 999px;
+        background: #e7e2d8;
+        overflow: hidden;
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        width: var(--width, 0%);
+        background: var(--accent);
+      }
+
+      details {
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        margin-top: 12px;
+      }
+
+      summary {
+        cursor: pointer;
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .reason {
+        color: var(--muted);
+        line-height: 1.7;
+        white-space: pre-wrap;
+      }
+
+      .status-line {
+        min-height: 22px;
+        color: var(--muted);
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.76);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 20;
+      }
+
+      .modal.open {
+        display: flex;
+      }
+
+      .modal img {
+        max-width: 96vw;
+        max-height: 92vh;
+        object-fit: contain;
+        background: #111827;
+      }
+
+      .modal button {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+      }
+
+      @media (max-width: 1180px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .image-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 780px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          min-height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .case-list {
+          max-height: 260px;
+        }
+
+        .topbar {
+          display: grid;
+        }
+
+        .image-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>人工面部对称性标注</h1>
+          <div class="subtle" id="labelPath">读取中</div>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="filters">
+          <input id="query" type="search" placeholder="患者、分组、优先级" />
+          <select id="statusFilter">
+            <option value="">全部状态</option>
+            <option value="unlabeled">未标注</option>
+            <option value="labeled">已标注</option>
+            <option value="quality_rejected">质量排除</option>
+          </select>
+          <select id="priorityFilter">
+            <option value="">全部优先级</option>
+            <option value="p0_grade_v_plus_nondisease_false_positive_review">P0 Grade V+ 不患病</option>
+            <option value="p1_diseased_low_grade_review">P1 患病低等级</option>
+            <option value="p1_grade_v_plus_positive_review">P1 Grade V+ 患病</option>
+            <option value="p2_existing_manual_review_candidate">P2 原复核候选</option>
+            <option value="p3_stratified_calibration_background">P3 分层背景样本</option>
+          </select>
+        </div>
+        <div class="case-list" id="caseList"></div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h2 id="caseTitle">未选择病例</h2>
+            <div class="subtle" id="caseMeta"></div>
+          </div>
+          <div class="actions">
+            <button id="previousCase">上一例</button>
+            <button id="nextCase">下一例</button>
+            <button id="nextUnlabeled">下个未标注</button>
+            <button id="recalibrate">重新校准</button>
+          </div>
+        </header>
+        <div class="content">
+          <div class="workspace">
+            <section class="section">
+              <div class="section-header">
+                <h3>核心 role 特征点图</h3>
+                <span class="badge" id="caseStatus">未标注</span>
+              </div>
+              <div class="section-body">
+                <div class="image-grid" id="imageGrid"></div>
+              </div>
+            </section>
+
+            <aside class="section">
+              <div class="section-header">
+                <h3>标注结果</h3>
+                <span class="badge" id="hbGrade">Grade</span>
+              </div>
+              <div class="section-body">
+                <form id="labelForm">
+                  <div class="field-group">
+                    <label>人工面部对称性</label>
+                    <div class="choice-grid">
+                      <label>
+                        <input type="radio" name="manual_face_asymmetry_label" value="0" />
+                        <span>未见明显不对称</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="manual_face_asymmetry_label" value="1" />
+                        <span>人脸不对称</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="field-group">
+                    <label for="manualGrade">人工程度等级</label>
+                    <select id="manualGrade" name="manual_asymmetry_grade">
+                      <option value="">不填写</option>
+                      <option value="1">1 对称</option>
+                      <option value="2">2 轻微不对称</option>
+                      <option value="3">3 轻中度不对称</option>
+                      <option value="4">4 中度不对称</option>
+                      <option value="5">5 极度不对称</option>
+                      <option value="6">6 无动态/完全瘫痪候选</option>
+                    </select>
+                  </div>
+
+                  <div class="field-group">
+                    <label>质量复核</label>
+                    <div class="choice-grid three">
+                      <label>
+                        <input type="radio" name="quality_review_usable_for_calibration" value="" />
+                        <span>未指定</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="quality_review_usable_for_calibration" value="1" />
+                        <span>可用于校准</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="quality_review_usable_for_calibration" value="0" />
+                        <span>排除</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="field-group">
+                    <label for="qualityLabel">质量标签</label>
+                    <select id="qualityLabel" name="quality_review_label">
+                      <option value="">无</option>
+                      <option value="可用">可用</option>
+                      <option value="姿态偏转">姿态偏转</option>
+                      <option value="遮挡">遮挡</option>
+                      <option value="闭眼/动作不配合">闭眼/动作不配合</option>
+                      <option value="关键点异常">关键点异常</option>
+                      <option value="人工复核不可用">人工复核不可用</option>
+                    </select>
+                  </div>
+
+                  <div class="field-group">
+                    <label for="reviewer">复核人</label>
+                    <input id="reviewer" name="reviewer_id" autocomplete="off" />
+                  </div>
+
+                  <div class="field-group">
+                    <label for="reviewNotes">备注</label>
+                    <textarea id="reviewNotes" name="review_notes"></textarea>
+                  </div>
+
+                  <div class="actions">
+                    <button class="primary" type="submit">保存</button>
+                    <button id="saveNext" type="button">保存并下一例</button>
+                    <button id="clearLabel" class="danger" type="button">清空本例</button>
+                  </div>
+                  <div class="status-line" id="saveStatus"></div>
+                </form>
+
+                <div class="field-group">
+                  <label>组件分数</label>
+                  <div class="score-grid" id="scoreGrid"></div>
+                </div>
+
+                <details open>
+                  <summary>代理原因</summary>
+                  <p class="reason" id="reason"></p>
+                </details>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="modal" id="imageModal">
+      <button id="closeModal">关闭</button>
+      <img id="modalImage" alt="" />
+    </div>
+
+    <script>
+      const state = {
+        cases: [],
+        selectedIndex: 0,
+        selectedPatient: "",
+        summary: {},
+        labelsPath: "",
+      };
+      const authToken = new URLSearchParams(window.location.search).get("token") || localStorage.getItem("facesymaiAccessToken") || "";
+      if (authToken) localStorage.setItem("facesymaiAccessToken", authToken);
+
+      const scoreLabels = {
+        resting_symmetry_score: "静息",
+        eye_closure_score: "闭眼",
+        brow_forehead_score: "眉额",
+        smile_mouth_score: "口部",
+        gross_asymmetry_score: "整体",
+        movement_absence_score: "无动态",
+        hb_proxy_overall_score: "总分",
+        hb_grade_confidence: "置信",
+      };
+
+      const statusLabels = {
+        unlabeled: ["未标注", "orange"],
+        labeled: ["已标注", "green"],
+        quality_rejected: ["质量排除", "red"],
+      };
+
+      function qs(id) {
+        return document.getElementById(id);
+      }
+
+      function debounce(fn, wait) {
+        let timer = 0;
+        return (...args) => {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => fn(...args), wait);
+        };
+      }
+
+      function apiUrl(path, params = new URLSearchParams()) {
+        if (authToken) params.set("token", authToken);
+        const query = params.toString();
+        return query ? `${path}?${query}` : path;
+      }
+
+      function apiHeaders(extra = {}) {
+        const headers = { ...extra };
+        if (authToken) headers["X-Label-Tool-Token"] = authToken;
+        return headers;
+      }
+
+      async function loadCases(preferredPatient = "") {
+        const params = new URLSearchParams();
+        const q = qs("query").value.trim();
+        const status = qs("statusFilter").value;
+        const priority = qs("priorityFilter").value;
+        if (q) params.set("q", q);
+        if (status) params.set("status", status);
+        if (priority) params.set("priority", priority);
+        const response = await fetch(apiUrl("/api/cases", params));
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "加载失败");
+        state.cases = payload.cases;
+        state.summary = payload.summary;
+        state.labelsPath = payload.labels_path;
+        qs("labelPath").textContent = payload.labels_path;
+        renderSummary();
+        renderCaseList();
+        if (state.cases.length === 0) {
+          state.selectedIndex = -1;
+          renderEmptyCase();
+          return;
+        }
+        const target = preferredPatient || state.selectedPatient;
+        const idx = target ? state.cases.findIndex((item) => item.patient_sample_id === target) : -1;
+        selectCase(idx >= 0 ? idx : 0);
+      }
+
+      function renderSummary() {
+        const s = state.summary || {};
+        qs("summary").innerHTML = [
+          metric("总数", s.total || 0),
+          metric("已标注", s.labeled || 0),
+          metric("不对称", s.positive || 0),
+          metric("质量排除", s.quality_rejected || 0),
+        ].join("");
+      }
+
+      function metric(label, value) {
+        return `<div class="metric"><strong>${escapeHtml(value)}</strong><span class="subtle">${escapeHtml(label)}</span></div>`;
+      }
+
+      function renderCaseList() {
+        const list = qs("caseList");
+        list.innerHTML = "";
+        state.cases.forEach((item, index) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `case-row ${index === state.selectedIndex ? "active" : ""}`;
+          button.addEventListener("click", () => selectCase(index));
+          const [statusText, statusColor] = statusLabels[item.status] || statusLabels.unlabeled;
+          button.innerHTML = `
+            <div class="case-line">
+              <strong>${escapeHtml(item.patient_sample_id)}</strong>
+              <span class="badge ${statusColor}">${statusText}</span>
+            </div>
+            <div class="case-line subtle">
+              <span>${escapeHtml(item.label_group)} / ${escapeHtml(item.split)}</span>
+              <span>${escapeHtml(item.hb_proxy_grade)}</span>
+            </div>
+            <div class="subtle">${escapeHtml(item.review_priority)}</div>
+          `;
+          list.appendChild(button);
+        });
+      }
+
+      function selectCase(index) {
+        if (index < 0 || index >= state.cases.length) return;
+        state.selectedIndex = index;
+        state.selectedPatient = state.cases[index].patient_sample_id;
+        renderCaseList();
+        renderCurrentCase();
+      }
+
+      function currentCase() {
+        return state.cases[state.selectedIndex];
+      }
+
+      function renderEmptyCase() {
+        qs("caseTitle").textContent = "没有匹配病例";
+        qs("caseMeta").textContent = "";
+        qs("caseStatus").textContent = "空";
+        qs("hbGrade").textContent = "Grade";
+        qs("imageGrid").innerHTML = "";
+        qs("scoreGrid").innerHTML = "";
+        qs("reason").textContent = "";
+        qs("labelForm").reset();
+      }
+
+      function renderCurrentCase() {
+        const item = currentCase();
+        if (!item) return renderEmptyCase();
+        const [statusText, statusColor] = statusLabels[item.status] || statusLabels.unlabeled;
+        qs("caseTitle").textContent = item.patient_sample_id;
+        qs("caseMeta").textContent = `${item.label_group} / ${item.split} / ${item.review_priority}`;
+        qs("caseStatus").className = `badge ${statusColor}`;
+        qs("caseStatus").textContent = statusText;
+        qs("hbGrade").textContent = item.hb_proxy_grade || "Grade";
+        renderImages(item);
+        renderScores(item);
+        renderForm(item);
+        qs("reason").textContent = [item.face_asymmetry_reason, item.hb_reason_codes].filter(Boolean).join("\n\n");
+      }
+
+      function renderImages(item) {
+        qs("imageGrid").innerHTML = item.images
+          .map((image) => {
+            if (!image.url) {
+              return `<div class="image-tile"><div class="image-title">${escapeHtml(image.label)}</div><div class="empty-image">无图片</div></div>`;
+            }
+            return `
+              <div class="image-tile">
+                <div class="image-title">${escapeHtml(image.label)}</div>
+                <button type="button" class="image-open" data-url="${escapeAttr(image.url)}">
+                  <img src="${escapeAttr(image.url)}" alt="${escapeAttr(image.label)}" loading="lazy" />
+                </button>
+              </div>
+            `;
+          })
+          .join("");
+        document.querySelectorAll(".image-open").forEach((button) => {
+          button.addEventListener("click", () => openModal(button.dataset.url));
+        });
+      }
+
+      function renderScores(item) {
+        qs("scoreGrid").innerHTML = Object.entries(scoreLabels)
+          .map(([key, label]) => {
+            const raw = item.scores[key] || "";
+            const value = Number(raw);
+            const width = Number.isFinite(value) ? Math.max(0, Math.min(100, value * 100)) : 0;
+            return `
+              <div class="score-row">
+                <span>${escapeHtml(label)}</span>
+                <div class="bar"><span style="--width:${width}%"></span></div>
+                <span class="subtle">${escapeHtml(raw)}</span>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function renderForm(item) {
+        qs("labelForm").reset();
+        const label = item.label || {};
+        setRadio("manual_face_asymmetry_label", label.manual_face_asymmetry_label || "");
+        setRadio("quality_review_usable_for_calibration", label.quality_review_usable_for_calibration || "");
+        qs("manualGrade").value = label.manual_asymmetry_grade || "";
+        qs("qualityLabel").value = label.quality_review_label || "";
+        qs("reviewer").value = label.reviewer_id || localStorage.getItem("facesymaiReviewer") || "";
+        qs("reviewNotes").value = label.review_notes || "";
+        qs("saveStatus").textContent = "";
+      }
+
+      function setRadio(name, value) {
+        const input = document.querySelector(`input[name="${name}"][value="${CSS.escape(value)}"]`);
+        if (input) input.checked = true;
+      }
+
+      function formPayload(clear = false) {
+        const item = currentCase();
+        if (!item) throw new Error("未选择病例");
+        if (clear) {
+          return {
+            patient_sample_id: item.patient_sample_id,
+            manual_face_asymmetry_label: "",
+            manual_asymmetry_grade: "",
+            quality_review_usable_for_calibration: "",
+            quality_review_label: "",
+            review_source: "html_label_tool",
+            reviewer_id: qs("reviewer").value,
+            review_notes: "",
+          };
+        }
+        const reviewer = qs("reviewer").value.trim();
+        localStorage.setItem("facesymaiReviewer", reviewer);
+        return {
+          patient_sample_id: item.patient_sample_id,
+          manual_face_asymmetry_label: radioValue("manual_face_asymmetry_label"),
+          manual_asymmetry_grade: qs("manualGrade").value,
+          quality_review_usable_for_calibration: radioValue("quality_review_usable_for_calibration"),
+          quality_review_label: qs("qualityLabel").value,
+          review_source: "html_label_tool",
+          reviewer_id: reviewer,
+          review_notes: qs("reviewNotes").value,
+        };
+      }
+
+      function radioValue(name) {
+        const checked = document.querySelector(`input[name="${name}"]:checked`);
+        return checked ? checked.value : "";
+      }
+
+      async function saveCurrent({ next = false, clear = false } = {}) {
+        const payload = formPayload(clear);
+        qs("saveStatus").textContent = "保存中";
+        const response = await fetch("/api/labels", {
+          method: "POST",
+          headers: apiHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "保存失败");
+        qs("saveStatus").textContent = "已保存";
+        const patient = payload.patient_sample_id;
+        await loadCases(patient);
+        if (next) move(1);
+      }
+
+      function move(delta) {
+        if (!state.cases.length) return;
+        const next = Math.max(0, Math.min(state.cases.length - 1, state.selectedIndex + delta));
+        selectCase(next);
+      }
+
+      function moveNextUnlabeled() {
+        if (!state.cases.length) return;
+        for (let step = 1; step <= state.cases.length; step += 1) {
+          const index = (state.selectedIndex + step) % state.cases.length;
+          if (state.cases[index].status === "unlabeled") {
+            selectCase(index);
+            return;
+          }
+        }
+      }
+
+      async function recalibrate() {
+        qs("saveStatus").textContent = "校准中";
+        const response = await fetch("/api/recalibrate", { method: "POST", headers: apiHeaders() });
+        const result = await response.json();
+        if (!response.ok || result.returncode !== 0) {
+          throw new Error(result.stderr || result.error || "校准失败");
+        }
+        const status = result.summary && result.summary.status ? result.summary.status : "完成";
+        qs("saveStatus").textContent = `校准状态：${status}`;
+      }
+
+      function openModal(url) {
+        qs("modalImage").src = url;
+        qs("imageModal").classList.add("open");
+      }
+
+      function closeModal() {
+        qs("imageModal").classList.remove("open");
+        qs("modalImage").src = "";
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value);
+      }
+
+      qs("labelForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          await saveCurrent();
+        } catch (error) {
+          qs("saveStatus").textContent = error.message;
+        }
+      });
+      qs("saveNext").addEventListener("click", async () => {
+        try {
+          await saveCurrent({ next: true });
+        } catch (error) {
+          qs("saveStatus").textContent = error.message;
+        }
+      });
+      qs("clearLabel").addEventListener("click", async () => {
+        try {
+          await saveCurrent({ clear: true });
+        } catch (error) {
+          qs("saveStatus").textContent = error.message;
+        }
+      });
+      qs("previousCase").addEventListener("click", () => move(-1));
+      qs("nextCase").addEventListener("click", () => move(1));
+      qs("nextUnlabeled").addEventListener("click", moveNextUnlabeled);
+      qs("recalibrate").addEventListener("click", async () => {
+        try {
+          await recalibrate();
+        } catch (error) {
+          qs("saveStatus").textContent = error.message;
+        }
+      });
+      qs("statusFilter").addEventListener("change", () => loadCases());
+      qs("priorityFilter").addEventListener("change", () => loadCases());
+      qs("query").addEventListener("input", debounce(() => loadCases(), 180));
+      qs("closeModal").addEventListener("click", closeModal);
+      qs("imageModal").addEventListener("click", (event) => {
+        if (event.target.id === "imageModal") closeModal();
+      });
+
+      loadCases().catch((error) => {
+        qs("caseTitle").textContent = "加载失败";
+        qs("caseMeta").textContent = error.message;
+      });
+    </script>
+  </body>
+</html>

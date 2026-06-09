@@ -1,0 +1,54 @@
+# ── Agent & IDE ──
+.codex-home/
+.codex-local/
+__pycache__/
+*.py[cod]
+.direnv/
+.env
+.vscode/
+.ruff_cache/
+.pytest_cache/
+.bmad/
+.agents/
+
+# ── Models & third-party weights ──
+models/
+third_party/
+
+# ── Temp & cache ──
+tmp/*
+!tmp/.gitkeep
+handoff.md
+
+# ── Business data files ──
+*.xlsx
+
+# ── Conda/venv ──
+.envrc
+
+# ── Large JSONL session logs ──
+*.jsonl
+
+# ── Datasets ──
+# Ignore all contents of datasets, then whitelist key results
+datasets/*
+!datasets/combined_disease_feature_candidates_20260529/
+!datasets/yolo_comparison_20260608/
+!datasets/facesym_v1_by_name_20260119/
+
+# Within combined_disease, keep only rule 62 metadata and report
+datasets/combined_disease_feature_candidates_20260529/*
+!datasets/combined_disease_feature_candidates_20260529/metadata/
+!datasets/combined_disease_feature_candidates_20260529/reports/
+datasets/combined_disease_feature_candidates_20260529/metadata/*
+datasets/combined_disease_feature_candidates_20260529/reports/*
+!datasets/combined_disease_feature_candidates_20260529/metadata/62_*
+!datasets/combined_disease_feature_candidates_20260529/reports/62_*
+
+# Within V1, keep only splits and manifest
+datasets/facesym_v1_by_name_20260119/*
+!datasets/facesym_v1_by_name_20260119/metadata/
+!datasets/facesym_v1_by_name_20260119/README.md
+datasets/facesym_v1_by_name_20260119/metadata/*
+!datasets/facesym_v1_by_name_20260119/metadata/05_patient_splits.csv
+!datasets/facesym_v1_by_name_20260119/metadata/01_manifest.csv

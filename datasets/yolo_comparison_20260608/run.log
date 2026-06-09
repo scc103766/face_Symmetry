@@ -1,0 +1,26 @@
+2026-06-08 15:21:38,118 INFO Starting YOLO V1 comparison run
+2026-06-08 15:21:38,118 INFO Arguments: {'manifest': PosixPath('/supercloud/llm-code/scc/scc/FaceSymAi/datasets/facesym_v1_by_name_20260119/metadata/01_manifest.csv'), 'splits': PosixPath('/supercloud/llm-code/scc/scc/FaceSymAi/datasets/facesym_v1_by_name_20260119/metadata/05_patient_splits.csv'), 'model': PosixPath('/supercloud/llm-code/scc/scc/FaceSymAi/third_party/stroke_detection_yolo/best.pt'), 'output_dir': PosixPath('/supercloud/llm-code/scc/scc/FaceSymAi/datasets/yolo_comparison_20260608'), 'conf': 0.25, 'device': 'cpu', 'limit': None, 'progress_every': 100}
+2026-06-08 15:21:38,119 INFO Loading manifest: /supercloud/llm-code/scc/scc/FaceSymAi/datasets/facesym_v1_by_name_20260119/metadata/01_manifest.csv
+2026-06-08 15:21:38,139 INFO Loaded 1546 images
+2026-06-08 15:21:38,139 INFO Loading YOLO model: /supercloud/llm-code/scc/scc/FaceSymAi/third_party/stroke_detection_yolo/best.pt
+2026-06-08 15:21:46,808 INFO Processed 100/1546 images
+2026-06-08 15:21:47,531 WARNING Failed image /supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_patient_outcome_by_name_20260119/不患病/姜新民__pid725/images/row0020_pid725_collect876__front_01.jpg patient=725 role=front error=ValueError: need at least one array to stack
+2026-06-08 15:21:48,336 WARNING Failed image /supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_patient_outcome_by_name_20260119/不患病/张秋珍__pid535/images/row0200_pid535_collect672__front_01.jpg patient=535 role=front error=ValueError: need at least one array to stack
+2026-06-08 15:21:49,565 INFO Processed 200/1546 images
+2026-06-08 15:21:52,380 INFO Processed 300/1546 images
+2026-06-08 15:21:55,134 INFO Processed 400/1546 images
+2026-06-08 15:21:57,863 INFO Processed 500/1546 images
+2026-06-08 15:22:00,635 INFO Processed 600/1546 images
+2026-06-08 15:22:03,204 INFO Processed 700/1546 images
+2026-06-08 15:22:05,862 INFO Processed 800/1546 images
+2026-06-08 15:22:08,521 INFO Processed 900/1546 images
+2026-06-08 15:22:11,102 INFO Processed 1000/1546 images
+2026-06-08 15:22:12,561 WARNING Failed image /supercloud/llm-code/scc/scc/FaceSymAi/datasets/stroke_patient_outcome_by_name_20260119/患病/李桂香__pid750/images/row0008_pid750_collect901__front_01.jpg patient=750 role=front error=ValueError: need at least one array to stack
+2026-06-08 15:22:13,739 INFO Processed 1100/1546 images
+2026-06-08 15:22:16,260 INFO Processed 1200/1546 images
+2026-06-08 15:22:18,807 INFO Processed 1300/1546 images
+2026-06-08 15:22:21,352 INFO Processed 1400/1546 images
+2026-06-08 15:22:23,893 INFO Processed 1500/1546 images
+2026-06-08 15:22:25,080 INFO Finished YOLO V1 comparison run: total=1546 success=1543 failure=3 detections=2223 elapsed_seconds=41.232
+2026-06-08 15:22:25,080 INFO Wrote CSV: /supercloud/llm-code/scc/scc/FaceSymAi/datasets/yolo_comparison_20260608/yolo_per_image_predictions.csv
+2026-06-08 15:22:25,080 INFO Wrote summary: /supercloud/llm-code/scc/scc/FaceSymAi/datasets/yolo_comparison_20260608/yolo_run_summary.json

@@ -1,0 +1,2 @@
+﻿threshold_policy,threshold_policy_description,score_threshold,patient_count,tp,fp,tn,fn,precision,recall,specificity,f1,balanced_accuracy,youden_j
+combined_patient_level_max_youden,在旧+新全部患者级加权得分上搜索阈值，按 Youden J、balanced accuracy、F1、precision、specificity、score_threshold 依次择优。,0.612826,605,220,63,164,158,0.777385,0.582011,0.722467,0.665658,0.652239,0.304478
