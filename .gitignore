@@ -11,8 +11,7 @@ __pycache__/
 .bmad/
 .agents/
 
-# ── Models & third-party weights ──
-models/
+# ── Third-party weights (YOLO etc) ──
 third_party/
 
 # ── Temp & cache ──
