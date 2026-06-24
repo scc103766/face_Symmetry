@@ -1,7 +1,7 @@
 ---
 name: pm-workflow
 description: Use when the user says “启用 PM 工作模式”, “初始化项目管理”, starts a new software project, or wants PM-review-approve-delegate mode. Provides a Hermes-compatible Product Manager workflow with approval gates, context memory, task queues, session archiving, break-point recovery, and optional Engineer execution through Hermes subagents/Codex.
-version: 2.3.0
+version: 2.5.0
 author: PM Workflow + Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -11,6 +11,10 @@ metadata:
     related_references:
       - references/approval-scope-and-artifact-hygiene.md
       - references/engineer_persona.md
+      - references/face-action-detection-geometry.md
+      - references/action-detection-api-pattern.md
+      - references/web-ui-api-test-page-pattern.md
+      - references/facesym-rule62-algorithm-analysis.md
 
 ---
 
@@ -84,6 +88,8 @@ PM 根据 Engineer 实际运行平台选择注入方式：
 - **PM 用 `delegate_task` 下发**：`context` 字段注入身份 + 任务单内容
 
 如果用户要求 Engineer 持久身份，PM 可在项目根目录创建 `AGENTS.md`（模板见 `references/engineer_persona.md`），Codex 启动时自动加载。
+
+> **实际经验**：当用户问"如何告诉 Codex 它的 Engineer 身份"时，直接创建 `AGENTS.md` 是最有效的方案。PM 应在初始化项目时**主动提议**创建 `AGENTS.md`，而不是等用户发现 Codex 越权后才补救。AGENTS.md 内容应从 `references/engineer_persona.md` 模板裁剪为项目专属版本（写入项目路径、conda env 名称等具体信息）。创建后，用户手动下发 Codex 时只需说"读取并执行 tasks/queue/M3-XXX.md"，Codex 会自动加载 AGENTS.md 中的持久身份约束。
 
 ### 技术教师补充要求：关键代码写法指导
 
@@ -185,13 +191,54 @@ PM 启动后按以下优先级扫描：
   → PM 设计方案 + 教学解释
   → 用户审批（批准/展开讲/换方案/缓缓）
   → 批准后 → PM 将任务单写入 tasks/queue/，并通知 Engineer 执行
-  → Engineer 完成后写入 tasks/done/
-  → PM 解读产出 → 提交用户审核
+  → Engineer 执行（可以思考、分析、做技术判断）
+  → Engineer 完成后写入 tasks/done/（报告末尾含「💡 Engineer 建议」）
+  → PM 解读产出 + Engineer 建议 → 提交用户审核
+  → 用户决定（通过/采纳部分建议开新任务/要求修订）
   → 通过 → 更新 PROJECT_CONTEXT.md
 ```
 
 **铁律**：用户没有明确说"批准"/"通过"之前，PM 不得推进下一步。
 **机制**：用户一旦批准，后续的"任务下发→Engineer执行→产出审核"由 PM 全程驱动，用户只需在关键节点审批。
+
+**坑**：用户讨论应用场景或提出"如果……可以怎么做"的假设性问题时，不要把它当成需求去创建任务单。用户说"这只是应用场景，不需要做任务单"是明确的停止信号——此时应只做技术讨论和可行性分析，不写任务单、不改 WORK_STATUS.md。
+
+**坑**：Enginner 报告过期。当任务经历了多轮方案迭代（如 A 方案→B 方案），且代码在报告写完后继续演进，Engineer 的原始报告会残留旧方案的指标和结论。断点恢复时检查三样东西的一致性：
+1. `tasks/done/<task>_report.md` 中的指标
+2. `WORK_STATUS.md` 中的摘要指标
+3. **实际部署代码**的逻辑（读 `action_detector.py` 等关键文件验证）
+
+如果三者不一致（例如报告说 33% 但 WORK_STATUS 说 96%，且代码已改为 blendshape 方案），以实际部署代码 + WORK_STATUS 为准，**重写报告**使其与当前部署版本匹配。不要只清理孤儿任务单就了事——报告也必须同步更新。FaceSymAi M3-P0-03 是典型例子：478 几何方案（33%/30%）→ eye gaze blendshape（96%/86%），报告在代码演进后变成过期文档。
+
+### Engineer 思考与反馈机制（v2.5.0 新增）
+
+> **Engineer 不是无脑执行器。** 在任务执行过程中，Engineer 可以进行技术思考和推理；任务完成后，必须向 PM 和用户反馈建议。
+
+#### Engineer 的权限
+
+| 权限 | 说明 |
+|------|------|
+| 🧠 **执行中思考** | 编码前分析可行性、遇到问题时推理根因、验证结果后做技术判断 |
+| 💡 **执行后建议** | 在报告的「💡 Engineer 建议」节提出方案改进、不合理反馈、后续优化方向、风险提示 |
+| 🚩 **诚实反馈** | 目标无法达成时如实报告实测结果，不造假、不降低标准 |
+
+#### Engineer 的边界
+
+| 禁止 | 说明 |
+|------|------|
+| ❌ 不自行扩展 | 建议是写给 PM 的决策参考，Engineer 不按建议自行修改代码 |
+| ❌ 不绕过审批 | 建议需经 PM 和用户审批后才能转化为新任务 |
+| ❌ 不替代 PM | Engineer 不替 PM 做产品决策、不重新定义任务目标 |
+
+#### PM 如何处理 Engineer 建议
+
+```
+Engineer 报告 → PM 读取「💡 Engineer 建议」节
+  ├─ 合理且紧急 → PM 开新任务单，立即进入审批
+  ├─ 合理但非紧急 → 记入 WORK_STATUS.md 技术债
+  ├─ 需要澄清 → PM 与 Engineer 沟通（通过 tasks/ 文件队列）
+  └─ 不合理 → PM 在审核结论中说明原因
+```
 
 ### 会话分离
 
@@ -361,11 +408,13 @@ cd /path/to/target-project
 - `scripts/import.sh` — 状态导入（跨机器迁移）
 
 ### 参考文档 (references/)
+- `references/action-detection-api-architecture.md` — 人脸动作检测 API 架构参考：8790/18432 双服务布局、斜视/露齿/侧视检测逻辑、视频帧管线模式、常见坑。
 - `references/agent_architecture.md` — 完整双代理协作协议
 - `references/migration.md` — 迁移指南（安装/初始化/导出/导入/多项目）
 - `references/session-archival-protocol.md` — project/meta 双池会话归档、完成标记和断点恢复卫生规则
 - `references/session-archival-protocol.md` — project/meta 双池会话归档、完成标记和断点恢复卫生规则
 - `references/nadimi-3paper-face-diabetes-api.md` — Nadimi-Majtner 三论文综合扫脸糖尿病风险评估方法：456维特征规格（静态面色+EVM+RMT）、MCD-rPPG数据集处理、API输出规格、Engineer任务单模板与PM审核检查清单。
+- `references/vitallens-python39-compatibility.md` — VitalLens 版本兼容性边界：v0.4.7 是最后一个兼容 Python 3.9 的版本，本地 POS/CHROM/G 算法 + prpy 离线 HR/HRV 提取方案与安装命令
 - `references/hermes-recovery-execution.md` — Hermes 中恢复已下发任务的安全检查、阶段化 smoke test、最小闭环与报告规则
 - `references/health-api-explanation-standards.md` — 健康风险评估 API 输出规范：固定临床阈值（低<0.10/中<0.85/高≥0.85）、因素解释必须引用疾病病理生理学（AGEs/微血管内皮功能障碍/自主神经病变等），而非技术特征描述
 - `references/hermes-context-agent.md` — 上下文接近 272k 时的 PM 冷启动恢复、新 Hermes 启动输入与交接协议
@@ -378,7 +427,26 @@ cd /path/to/target-project
 - `references/cvd-label-taxonomy-validator.md` — CVD-LABEL-01 类任务：把标签语义写成 taxonomy + YAML schema + 训练前 leakage validator，包含 NHANES/BRFSS strict 验证和 Mymensing 泄漏探针模式。
 - `references/cardiovascular-dataset-reuse.md` — 心血管风险项目复用糖尿病/人脸健康项目数据集的审计流程：优先本地真实 profile，区分 MACE/自报/公式/proxy/模型概率标签，输出 cross-project reuse matrix。
 - `references/engineer_persona.md` — Engineer Agent 身份定义模板：角色卡、核心约束（14条）、注入时机（任务单/Codex CLI/delegate_task）、持久身份 AGENTS.md 模板、常见坑。
+- `references/engineer_persona.md` — Engineer Agent 身份定义模板
+- `references/action-detection-api-design.md` — 人脸动作检测 API 设计模式
+- `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流
+- `references/engineer_persona.md` — Engineer Agent 身份定义模板
+- `references/action-detection-api-design.md` — 人脸动作检测 API 设计模式
+- `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流
 - `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流：先确认当前模型与固定协议基线，再按传统攻击、AI深伪、开源项目、论文摘要和工程升级建议分文件落盘；包含 API 风险字段和 AI-APCER 评测建议。
+- `references/web-ui-api-test-page-pattern.md` — Web UI 冒烟测试页面模式：自包含 HTML 页面的搭建方法、服务端静态文件路由、以及 FormData.clone() 导致多 fetch 失败的经典坑及修复。
+- `references/engineer_persona.md` — Engineer Agent 身份定义模板：角色卡、核心约束（14条）、注入时机（任务单/Codex CLI/delegate_task）、持久身份 AGENTS.md 模板、常见坑。
+- `references/engineer_persona.md` — Engineer Agent 身份定义模板
+- `references/action-detection-api-design.md` — 人脸动作检测 API 设计模式
+- `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流
+- `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流：先确认当前模型与固定协议基线，再按传统攻击、AI深伪、开源项目、论文摘要和工程升级建议分文件落盘；包含 API 风险字段和 AI-APCER 评测建议。
+- `references/engineer_persona.md` — Engineer Agent 身份定义模板：角色卡、核心约束（14条）、注入时机（任务单/Codex CLI/delegate_task）、持久身份 AGENTS.md 模板、常见坑。
+- `references/engineer_persona.md` — Engineer Agent 身份定义模板
+- `references/action-detection-api-design.md` — 人脸动作检测 API 设计模式
+- `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流
+- `references/flash-liveness-attack-research.md` — 人脸活体/PAD/AI换脸调研文档工作流：先确认当前模型与固定协议基线，再按传统攻击、AI深伪、开源项目、论文摘要和工程升级建议分文件落盘；包含 API 风险字段和 AI-APCER 评测建议。
+
+- `references/facesym-rule62-algorithm-analysis.md` — FaceSymAi 62规则不对称分析算法现状审计：基线指标（Precision 0.723 / Recall 0.772 / Specificity 0.507）、管线全景、21特征区域分布、5个优化方向（软评分/姿态校准/动作特征集成/动静对比/ML替代规则引擎）、关键代码路径与YOLO对比结论。
 
 ---
 
@@ -477,6 +545,7 @@ cd /path/to/target-project
 - MCD-rPPG ROI 可视化、FaceSym 478 关键点与几何特征参考：`references/mcd-rppg-roi-visualization-and-geometry.md`，用于从视频抽帧绘制 6 ROI、解释 ROI/rPPG/颜色特征获取、以及把技术方案中的 468 点历史表述修正为 FaceSym API 实际 478 raw landmarks + 25 semantic landmarks。
 - Nadimi-Majtner 三论文综合扫脸糖尿病风险评估参考：`references/nadimi-3paper-api-lessons.md`，包含 456 维特征规格（静态面色+EVM+RMT）、论文锚定解释规范（每个输出必须引用具体论文和效应量）、固定临床阈值（低<0.10/中<0.85/高≥0.85）、训练集自评 vs CV 诚实评估的区分、以及 Engineer 下发后 PM 审核清单。
 - `references/mcd-rppg-reproduction-closure.md` — MCD-rPPG 旧 queue 复现任务收尾模式：先核验真实产物，再用统一 RESULTS/最终报告归档 stale legacy tasks，明确哪些全量训练/预处理未执行且被分阶段工程验证替代。
+- `references/vitallens-rppg-hrv-pipeline.md` — VitalLens 版本兼容性与 Python 3.9 安装策略（v0.4.7 为最后兼容版本）、本地 POS/CHROM/G 算法能力矩阵、prpy HRV 精确调用签名、带通滤波+FFT 心率估计、短信号处理与 SQI 模式。用于 Route C 生理信号提取和 CVD API 的 rPPG/HRV 管线。
 - `references/mcd-rppg-evm-scale-supervision.md` — MCD-rPPG EVM/欧拉视频放大特征提取模式：在已有人脸视频采集与 ROI 缓存后，用 ROI RGB 时间序列做 bandpass+alpha 动态红度特征，保留 HbA1c/量表/健康字段作监督或辅助任务上下文，并输出相关性 caveat 与下一步合并特征 smoke test 建议。
 - 当前会话内用 `todo` 管理步骤；跨会话/跨项目状态仍以 `PROJECT_CONTEXT.md`、`WORK_STATUS.md`、`tasks/`、`sessions/` 为准。
 
@@ -484,12 +553,15 @@ cd /path/to/target-project
 
 当构建扫脸看健康类 API 时，输出中的因素解释必须满足：
 
-1. **论文锚定**：每个特征解释必须引用具体论文（期刊、年份、样本量、关键效应量如 p<0.001 或 Acc 92.86%），不能只有通用医学描述。用户会要求"根据扫脸测糖尿病核心论文的详细内容，将得分合理解释"。
-2. **固定临床阈值**：风险等级阈值必须是固定的医学阈值（如 低<0.10、高≥0.85），不能用训练集百分位。用户明确要求"风险概率不在0.85以上的不能按照高风险输出"。
+1. **医学规律优先，不提及论文**：每个特征解释必须从疾病病理生理学角度出发（AGEs/微血管内皮功能障碍/自主神经病变/毛细血管前括约肌等），**不得引用具体论文名称、期刊、样本量或 p 值**。用户会明确指出"解释时不需要提及具体的论文，只需要符合医学规律"。
+2. **固定临床阈值**：风险等级阈值必须是固定的临床阈值，不能用训练集百分位。阈值需根据模型实际 CV 概率分布合理设定，确保"高风险"区间有真实正样本覆盖、"中风险"区间不过于宽泛。用户会纠正"中风险的区间过于太宽泛"等问题。
 3. **诚实评估**：模型部署文件（pipeline.pkl）是在全量数据上 fit 的，评估时必须用 GroupKFold CV 指标而非 in-sample prediction。in-sample AUROC 可达 0.99 但 CV 仅 0.77——永远报 CV 数字为真实性能。
 4. **标签干净**：不能用从 HbA1c 推导的 Glucose 来训 XGBoost 再反向标糖尿病——这是循环泄漏。金标准标签 = 纯 HbA1c ≥ 6.5% 阈值。
+5. **论文学习材料**：用户可能要求"下载用到的每个论文到本地，并且生成一个对应的中文阅读版本方便我学习"。此时应通过 PubMed API 获取摘要，撰写包含研究目的、方法、核心结果、结论、对本项目价值的完整中文版。
 
-详见 `references/nadimi-3paper-api-lessons.md` 和 `references/health-api-explanation-standards.md`。
+详见 `references/health-api-explanation-standards.md`。
+
+- `references/diabetes-risk-api-patterns.md` — 糖尿病风险评估 API 设计模式：Platt 概率校准（Brier <0.01）、population-independent 固定阈值（低<0.30/中0.30-0.70/高≥0.70）、用户面解释规范（医学规律、禁用论文引用）、与 in-sample/CV 诚实评估区分。
 
 ### Hermes terminal 审批与数据文件修改
 

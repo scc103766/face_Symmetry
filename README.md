@@ -114,3 +114,54 @@ pytest tests/ -v
 ## 许可
 
 研究项目，仅供学术和技术研究使用。
+
+---
+
+## 📋 PM Workflow Skill — 双代理项目管理
+
+本仓库包含可迁移的 PM 工作流 skill（`pm-workflow` v2.5.0），支持 Hermes Agent 的 PM + Engineer 双代理协作模式。
+
+### Skill 功能
+
+| 功能 | 说明 |
+|------|------|
+| 项目初始化 | 一键创建 PROJECT_CONTEXT.md / WORK_STATUS.md / tasks/ / sessions/ 骨架 |
+| 审批流 | PM 设计方案 → 用户审批 → Engineer 执行 → 报告 + 建议 → PM 审核 |
+| 断点恢复 | 崩溃/断网后自动检测中断点，支持跨会话无缝恢复 |
+| 跨机器迁移 | export.sh/import.sh 打包项目状态，可在机器间自由迁移 |
+| Engineer 反馈 | Engineer 执行后可向 PM 提出方案改进建议和不合理反馈 |
+
+### 安装
+
+```bash
+# 从本仓库安装为 Hermes 全局 skill
+mkdir -p ~/.hermes/skills/productivity/
+cp -r .hermes/skills/productivity/pm-workflow ~/.hermes/skills/productivity/
+
+# 或放入目标项目的 .hermes/skills/（跟随项目 git 仓库）
+cp -r .hermes/skills/productivity/pm-workflow /path/to/your-project/.hermes/skills/
+```
+
+### 使用
+
+```bash
+# 在 Hermes Agent 中启动
+开启 PM 工作模式，继续 FaceSymAi 项目。
+
+# 初始化新项目
+~/.hermes/skills/productivity/pm-workflow/scripts/init.sh /path/to/new-project
+
+# 导出项目状态
+~/.hermes/skills/productivity/pm-workflow/scripts/export.sh
+
+# 导入项目状态
+~/.hermes/skills/productivity/pm-workflow/scripts/import.sh backup.tar.gz
+```
+
+### 版本历史
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| v2.5.0 | 2026-06-24 | 新增 Engineer 思考与反馈机制：执行后可提方案建议/不合理反馈/后续优化/风险提示 + PM 报告过期检测 |
+| v2.4.0 | 2026-06-23 | 新增 Engineer 身份持久注入（AGENTS.md 模板） |
+| v2.3.0 | 2026-06-23 | 新增 Engineer 身份定义模板（engineer_persona.md，14条约束） |
