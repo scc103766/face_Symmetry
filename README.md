@@ -48,7 +48,7 @@ python scripts/detect_mediapipe_image.py --image path/to/face.jpg
 
 ```bash
 python modules/facial_asymmetry_service/serve_web.py --port 8790
-# 访问 http://localhost:8790
+# 访问 http://192.168.17.175:8790
 ```
 
 ### 运行 V1 数据处理流程

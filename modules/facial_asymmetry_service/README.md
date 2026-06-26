@@ -21,7 +21,7 @@
 - 输出 face blendshapes。
 - 输出 facial transformation matrixes。
 
-服务不强制限制动作，但同一受试者最少 `2` 张、最多 `10` 张。按面部不对称的观察价值，推荐优先提供：
+服务不强制限制动作，但同一受试者最少 `2` 张、最多 `25` 张。按面部不对称的观察价值，推荐优先提供：
 
 - `smile_teeth`，或旧数据中的 `smile` / `teeth`：露齿微笑/口部动态图片，用于观察双侧口角夹角、口角牵拉幅度和唇部中线是否左右不一致。
 - `front` 或 `front_contour`：正脸/面部轮廓静态图，用于观察静息状态下面部轮廓、唇中线、眼裂和眉部高度差。
@@ -63,23 +63,26 @@ scripts/run_in_project_env.sh python modules/facial_asymmetry_service/run_analyz
 
 ## 网页上传服务
 
-网页服务默认绑定 `0.0.0.0`，可被局域网/外部网络访问。外网暴露时建议设置访问 token：
+网页服务默认绑定 `0.0.0.0`，可被局域网/外部网络访问。当前部署不启用访问 token：
 
 ```bash
 scripts/run_in_project_env.sh python modules/facial_asymmetry_service/serve_web.py \
-  --port 8790 \
-  --access-token <token>
+  --port 8790
 ```
+
+如果现场需要鉴权，可以在启动时增加 `--access-token <your-token>`；只有显式设置该参数后，网页和 API 才需要 token。
 
 网页地址形如：
 
 ```text
-http://127.0.0.1:8790/?token=<token>
+http://192.168.17.175:8790/
 ```
 
 完整网页/API/Python/JavaScript 调用说明见 `modules/facial_asymmetry_service/CALLING_GUIDE.md`。
+如果调用方需要显式执行“先关键点检测、再人脸不对称推理”的两步链路，见
+`modules/facial_asymmetry_service/TWO_STEP_API_CALLING_GUIDE.md`。
 
-上传页面会提示同一人最少 `2` 张、最多 `10` 张，动作不强制限制。推荐动作按用户可理解的观察价值排序：
+上传页面会提示同一人最少 `2` 张、最多 `25` 张，动作不强制限制。推荐动作按用户可理解的观察价值排序：
 
 - 优先 `smile_teeth/smile/teeth`：观察双侧口角夹角、口角牵拉幅度、唇部中线偏移。
 - 推荐 `front_contour/front`：观察静息状态下面部轮廓、双侧眼裂高度、眉部高度差。
@@ -88,16 +91,16 @@ http://127.0.0.1:8790/?token=<token>
 外部系统可直接调用：
 
 ```bash
-curl -X POST "http://127.0.0.1:8790/api/analyze?token=<token>" \
+curl -X POST "http://192.168.17.175:8790/api/analyze" \
   -F "smile_teeth=@smile_teeth.jpg" \
   -F "front_contour=@front.jpg" \
-  -F "extra_images=@other.jpg"
+  -F "eyes_right=@other_action.jpg"
 ```
 
 输入规范接口：
 
 ```bash
-curl "http://127.0.0.1:8790/api/input-spec?token=<token>"
+curl "http://192.168.17.175:8790/api/input-spec"
 ```
 
 上传分析结果会保存到项目内：
@@ -111,8 +114,9 @@ tmp/facial_asymmetry_service_uploads/<request_id>/analysis.json
 - `analysis.face_asymmetry_output`：`人脸不对称性较高`、`未达到高置信人脸不对称阈值` 或 `无法判断`。
 - `analysis.face_asymmetry_confidence`：62 规则加权证据分。
 - `analysis.confidence_level`：置信等级。
-- `analysis.reason_description`：用户可读的中文判断原因摘要。
-- `analysis.findings`：主要观察项，例如双侧口角夹角或牵拉幅度差、唇部中线偏移、双侧眼裂高度或眼周形态差、双侧眉部高度或动作幅度差。
+- `analysis.top_attributions`：前 5 项生理归因，按医学优先级加权贡献排序，包含区域、观察项、生理含义、阈值、权重、医学优先分和相关图片。
+- `analysis.region_results`：面部区域权重占比和触发贡献占比。
+- `analysis.feature_region_results`：21 项特征的区域分类与排序结果，包含 `medical_priority_score`、`medical_priority_multiplier` 和 `medical_priority_contribution`。
 - `images[].status_message`：每张图片是否已识别人脸并纳入分析。
 
 ## 边界

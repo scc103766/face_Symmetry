@@ -28,6 +28,10 @@ from .cli import (
     infer_role_from_filename,
     resolve_rule_dir,
 )
+from .action_detector import (
+    detect_side_view,
+    detect_teeth_exposure,
+)
 from .rule62 import DEFAULT_RULE_DIR, load_rule62_config, normalize_role
 
 
@@ -35,7 +39,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_PAGE = PROJECT_ROOT / "modules" / "facial_asymmetry_service" / "web_upload.html"
 DEFAULT_UPLOAD_DIR = PROJECT_ROOT / "tmp" / "facial_asymmetry_service_uploads"
 MIN_IMAGE_COUNT = 2
-MAX_IMAGE_COUNT = 10
+MAX_IMAGE_COUNT = 25
 FIELD_ROLES = {
     "front": "front",
     "front_contour": "front_contour",
@@ -59,62 +63,126 @@ ROLE_LABELS = {
     "frown": "皱眉",
     "unknown": "未标注动作",
 }
-USER_FINDING_GROUPS = (
-    {
-        "key": "mouth_corner_pull",
-        "title": "双侧口角夹角或牵拉幅度差",
-        "description": "微笑、露齿或示齿时，左右口角上提、外拉或夹角变化不一致，可能表现为一侧口角活动不足或口角高度不齐。",
-        "features": {"bsdiff_mouth_abs", "bsdiff_mouth_lateral_abs", "raw_mouth_corner_vertical_asym"},
+# 21 项稳定特征的中文临床解读，覆盖所有 62 规则特征。
+FEATURE_INTERPRETATIONS: dict[str, dict[str, str]] = {
+    # --- 口部动态特征 (mouth_dynamic scope, 7 项) ---
+    "bsdiff_mouth_abs": {
+        "title": "双侧口角垂直方向动作幅度差",
+        "description": "微笑或露齿时，左右口角上提幅度不一致，可能表现为一侧口角活动不足或口角高度不齐。",
+        "group": "mouth_corner",
     },
-    {
-        "key": "mouth_frown",
-        "title": "双侧口角下垂动作差",
-        "description": "左右口角下垂相关动作幅度不一致，可对应一侧口角控制较弱或表情动作不协调。",
-        "features": {"bsdiff_mouthFrown_abs"},
+    "bsdiff_mouth_lateral_abs": {
+        "title": "双侧口角水平方向动作幅度差",
+        "description": "微笑或露齿时，左右口角向外牵拉幅度不一致，可能表现为一侧口角外展不足。",
+        "group": "mouth_corner",
     },
-    {
-        "key": "lip_midline",
+    "raw_mouth_corner_vertical_asym": {
+        "title": "静息状态下口角垂直高度差",
+        "description": "自然状态下左右口角高度不对称，可能表现为一侧口角低于对侧。",
+        "group": "mouth_corner",
+    },
+    "bsdiff_mouthFrown_abs": {
+        "title": "双侧降口角动作幅度差",
+        "description": "左右口角下垂动作幅度不一致，可对应一侧口角控制较弱或表情动作不协调。",
+        "group": "mouth_corner",
+    },
+    "raw_lip_midline_deviation": {
         "title": "唇部中线偏移",
         "description": "上下唇中心相对面部中线出现偏移，可能表现为口唇向一侧偏斜。",
-        "features": {"raw_lip_midline_deviation"},
+        "group": "lip_midline",
     },
-    {
-        "key": "eye_aperture",
-        "title": "双侧眼裂高度或眼周形态差",
-        "description": "左右眼裂高度、眼周区域大小或眼周形态不一致，可能表现为一侧睁眼幅度、眼裂高度或眼周张力不同。",
-        "features": {
-            "raw_iris_region_point_spread_asym",
-            "raw_iris_region_area_asym",
-            "raw_eye_region_point_spread_asym",
-            "raw_iris_region_centroid_y_asym",
-            "raw_eye_region_centroid_y_asym",
-            "bsdiff_eyeLookDown_abs",
-        },
+    "bsdiff_all_mean_abs": {
+        "title": "口部整体动作平均不对称度",
+        "description": "口部动态表情的整体左右不对称程度，综合反映口周肌肉群运动的协调性。",
+        "group": "mouth_corner",
     },
-    {
-        "key": "brow_height",
-        "title": "双侧眉部高度或动作幅度差",
-        "description": "左右眉部高度、眉眼区域形态或皱眉/抬眉动作幅度不一致，可能提示额眉部运动不协调。",
-        "features": {
-            "raw_eyebrow_region_height_asym",
-            "raw_eyebrow_region_point_spread_asym",
-            "raw_eyebrow_region_area_asym",
-            "raw_eyebrow_region_centroid_y_asym",
-            "raw_brow_outer_height_asym",
-            "bsdiff_browDown_abs",
-        },
+    # --- 眼周特征 (6 项) ---
+    "raw_iris_region_point_spread_asym": {
+        "title": "虹膜区域点分布不对称",
+        "description": "左右虹膜区域关键点分布不一致，可能表现为一侧眼球位置或眼裂形态不同。",
+        "group": "eye_aperture",
     },
-    {
-        "key": "face_contour",
-        "title": "面部轮廓左右高度或位置差",
-        "description": "面部轮廓、整体面部点位或左右面部高度分布不一致，可能表现为脸部一侧下垂或轮廓不对称。",
-        "features": {
-            "raw_face_oval_region_centroid_y_asym",
-            "raw_face_oval_region_height_asym",
-            "raw_all_mesh_region_height_asym",
-        },
+    "raw_iris_region_area_asym": {
+        "title": "虹膜区域面积不对称",
+        "description": "左右虹膜可见区域面积不一致，可能提示一侧眼裂开合程度不同。",
+        "group": "eye_aperture",
     },
-)
+    "raw_iris_region_centroid_y_asym": {
+        "title": "虹膜区域质心垂直不对称",
+        "description": "左右虹膜中心垂直位置不一致，可能表现为一侧眼球位置偏高或偏低。",
+        "group": "eye_aperture",
+    },
+    "raw_eye_region_point_spread_asym": {
+        "title": "眼周区域点分布不对称",
+        "description": "左右眼周关键点分布形态不一致，可能表现为一侧眼周区域大小或形态差异。",
+        "group": "eye_aperture",
+    },
+    "raw_eye_region_centroid_y_asym": {
+        "title": "眼周区域质心垂直不对称",
+        "description": "左右眼周区域中心垂直位置不一致，可能表现为一侧眼部整体位置偏高或偏低。",
+        "group": "eye_aperture",
+    },
+    "bsdiff_eyeLookDown_abs": {
+        "title": "双侧下视动作幅度差",
+        "description": "左右眼下视动作幅度不一致，可能提示眼外肌运动不协调。",
+        "group": "eye_aperture",
+    },
+    # --- 眉部特征 (6 项) ---
+    "raw_eyebrow_region_height_asym": {
+        "title": "眉部区域高度不对称",
+        "description": "左右眉部区域高度不一致，可能表现为一侧眉部位置偏低或偏高。",
+        "group": "brow_height",
+    },
+    "raw_eyebrow_region_point_spread_asym": {
+        "title": "眉部区域点分布不对称",
+        "description": "左右眉部关键点分布形态不一致，可能表现为一侧眉形或眉部张力不同。",
+        "group": "brow_height",
+    },
+    "raw_eyebrow_region_area_asym": {
+        "title": "眉部区域面积不对称",
+        "description": "左右眉部可见区域面积不一致，可能提示眉眼区域整体形态差异。",
+        "group": "brow_height",
+    },
+    "raw_eyebrow_region_centroid_y_asym": {
+        "title": "眉部区域质心垂直不对称",
+        "description": "左右眉部中心垂直位置不一致，可能表现为一侧眉毛整体偏低或偏高。",
+        "group": "brow_height",
+    },
+    "raw_brow_outer_height_asym": {
+        "title": "眉外侧高度不对称",
+        "description": "左右眉外侧高度不一致，可能表现为一侧眉梢下垂或上挑。",
+        "group": "brow_height",
+    },
+    "bsdiff_browDown_abs": {
+        "title": "双侧降眉动作幅度差",
+        "description": "左右皱眉或降眉动作幅度不一致，可能提示额眉部运动不协调。",
+        "group": "brow_height",
+    },
+    # --- 面部轮廓特征 (3 项) ---
+    "raw_face_oval_region_centroid_y_asym": {
+        "title": "面部轮廓质心垂直不对称",
+        "description": "左右面部轮廓区域的质心垂直位置不一致，可能表现为一侧脸颊下垂或面部轮廓偏斜。",
+        "group": "face_contour",
+    },
+    "raw_face_oval_region_height_asym": {
+        "title": "面部轮廓区域高度不对称",
+        "description": "左右面部轮廓区域高度不一致，可能表现为一侧脸部整体偏低。",
+        "group": "face_contour",
+    },
+    "raw_all_mesh_region_height_asym": {
+        "title": "整体面部网格区域高度不对称",
+        "description": "整体面部网格左右高度分布不一致，综合反映面部形态左右差异。",
+        "group": "face_contour",
+    },
+}
+REGION_LABELS = {
+    "mouth_corner": "口角运动区",
+    "lip_midline": "唇部中线区",
+    "eye_aperture": "眼裂/眼周区",
+    "brow_height": "眉额区",
+    "face_contour": "面部轮廓区",
+    "unknown": "其他区域",
+}
 
 
 @dataclass(frozen=True)
@@ -210,6 +278,15 @@ class FacialAsymmetryWebApp:
 
     def handle_post(self, request: BaseHTTPRequestHandler) -> None:
         parsed = urlparse(request.path)
+        if parsed.path == "/keypoint":
+            self._handle_keypoint(request, parsed.query)
+            return
+        if parsed.path == "/ceshi":
+            self._handle_ceshi(request, parsed.query)
+            return
+        if parsed.path == "/louyachi":
+            self._handle_louyachi(request, parsed.query)
+            return
         if parsed.path != "/api/analyze":
             send_json(request, 404, {"error": "not found"})
             return
@@ -221,12 +298,107 @@ class FacialAsymmetryWebApp:
             validate_uploads(uploads, max_images=self.max_images)
             report = self.analyze_uploads(uploads)
         except ValueError as exc:
-            send_json(request, 400, {"error": str(exc), "input_requirements": public_input_spec(self.max_images)})
+            send_json(request, 400, {"error": str(exc)})
             return
         except Exception as exc:  # noqa: BLE001 - HTTP service returns structured error.
             send_json(request, 500, {"error": type(exc).__name__, "message": str(exc)})
             return
         send_json(request, 200, report)
+
+    def _handle_keypoint(self, request: BaseHTTPRequestHandler, query: str) -> None:
+        if not self.authorized(request, query):
+            send_json(request, 401, {"error": "unauthorized"})
+            return
+        try:
+            detection, error_response, _upload_path = self._detect_single_face(request)
+        except ValueError as exc:
+            send_json(request, 400, {"error": str(exc)})
+            return
+        except Exception as exc:  # noqa: BLE001 - HTTP service returns structured error.
+            send_json(request, 500, {"error": type(exc).__name__, "message": str(exc)})
+            return
+        if error_response is not None:
+            send_json(request, 200, error_response)
+            return
+        send_json(request, 200, {"status": "detected", "detection": detection.to_dict()})
+
+    def _handle_ceshi(self, request: BaseHTTPRequestHandler, query: str) -> None:
+        if not self.authorized(request, query):
+            send_json(request, 401, {"error": "unauthorized"})
+            return
+        try:
+            detection, error_response, _upload_path = self._detect_single_face(request)
+        except ValueError as exc:
+            send_json(request, 400, {"error": str(exc)})
+            return
+        except Exception as exc:  # noqa: BLE001 - HTTP service returns structured error.
+            send_json(request, 500, {"error": type(exc).__name__, "message": str(exc)})
+            return
+        if error_response is not None:
+            send_json(request, 200, error_response)
+            return
+
+        detection_payload = detection.to_dict()
+        side_view = detect_side_view(detection_payload)
+        send_json(
+            request,
+            200,
+            {
+                "status": "detected",
+                "side_view": {
+                    "detected": side_view.detected,
+                    "direction": side_view.direction,
+                    "yaw_angle": round(side_view.yaw_angle, 2),
+                    "level": side_view.level,
+                    "confidence": side_view.confidence,
+                    "details": side_view.details,
+                },
+            },
+        )
+
+    def _handle_louyachi(self, request: BaseHTTPRequestHandler, query: str) -> None:
+        if not self.authorized(request, query):
+            send_json(request, 401, {"error": "unauthorized"})
+            return
+        try:
+            detection, error_response, upload_path = self._detect_single_face(request)
+        except ValueError as exc:
+            send_json(request, 400, {"error": str(exc)})
+            return
+        except Exception as exc:  # noqa: BLE001 - HTTP service returns structured error.
+            send_json(request, 500, {"error": type(exc).__name__, "message": str(exc)})
+            return
+        if error_response is not None:
+            send_json(request, 200, error_response)
+            return
+
+        teeth_exposure = detect_teeth_exposure(detection.to_dict(), image_path=str(upload_path))
+        send_json(
+            request,
+            200,
+            {
+                "status": "detected",
+                "teeth_exposure": {
+                    "detected": teeth_exposure.detected,
+                    "mouth_state": teeth_exposure.mouth_state,
+                    "confidence": round(teeth_exposure.confidence, 4),
+                    "details": teeth_exposure.details,
+                },
+            },
+        )
+
+    def _detect_single_face(self, request: BaseHTTPRequestHandler) -> tuple[Any, dict[str, Any] | None, Path | None]:
+        """Read one uploaded image and run MediaPipe face detection."""
+
+        uploads = self.read_uploads(request)
+        if not uploads:
+            raise ValueError("请上传一张图片。")
+        upload = uploads[0]
+        with self.detector_lock:
+            detection = self.detector.detect_image_path(upload.path)
+        if detection is None:
+            return None, {"status": "no_face"}, upload.path
+        return detection, None, upload.path
 
     def authorized(self, request: BaseHTTPRequestHandler, query: str) -> bool:
         if not self.access_token:
@@ -266,7 +438,7 @@ class FacialAsymmetryWebApp:
                     raise ValueError(f"图片超过大小限制：{original_name}。")
                 if not data:
                     raise ValueError(f"上传图片为空：{original_name}。")
-                role = role_from_field(field_name) or infer_role_from_filename(Path(original_name)) or "unknown"
+                role = infer_role_from_filename(Path(original_name)) or role_from_field(field_name) or "unknown"
                 digest = hashlib.sha1(data).hexdigest()[:10]
                 safe_name = safe_upload_name(original_name, field_name, role, digest)
                 path = target_dir / safe_name
@@ -295,6 +467,14 @@ class FacialAsymmetryWebApp:
                     annotated_output=None,
                     allow_multiple_faces=self.allow_multiple_faces,
                 )
+                # Auto-infer role from action detection when filename gives no role
+                if upload.media_role == "unknown":
+                    detection = public_result.get("detection") or {}
+                    if isinstance(detection, dict) and detection.get("status") == "detected":
+                        inferred = _infer_role_from_detection(detection, str(upload.path))
+                        if inferred != "unknown":
+                            public_result["input"]["media_role"] = inferred
+                            feature_row["media_role"] = inferred
                 public_result["input"]["original_filename"] = upload.original_filename
                 public_result["input"]["upload_field"] = upload.field_name
                 image_results.append(public_result)
@@ -307,11 +487,7 @@ class FacialAsymmetryWebApp:
         )
         output_path = uploads[0].path.parent / "analysis.json"
         technical_output_path = uploads[0].path.parent / "analysis_technical.json"
-        public_report = build_public_report(report, max_images=self.max_images)
-        public_report["upload"] = {
-            "request_dir": uploads[0].path.parent.as_posix(),
-            "analysis_path": output_path.as_posix(),
-        }
+        public_report = build_public_report(report)
         technical_output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         output_path.write_text(json.dumps(public_report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return public_report
@@ -322,6 +498,21 @@ def role_from_field(field_name: str) -> str | None:
     return FIELD_ROLES.get(normalized)
 
 
+def _infer_role_from_detection(detection: dict[str, Any], image_path: str) -> str:
+    """Infer media_role from action detection results when filename gives no role."""
+    try:
+        side = detect_side_view(detection)
+        teeth = detect_teeth_exposure(detection, image_path=image_path)
+    except Exception:
+        return "unknown"
+
+    if side.detected and side.direction in ("left", "right"):
+        return "eyes_right"
+    if teeth.detected and teeth.mouth_state == "teeth_visible":
+        return "smile_teeth"
+    return "front"
+
+
 def validate_uploads(uploads: list[UploadedImage], *, max_images: int) -> None:
     if len(uploads) < MIN_IMAGE_COUNT:
         raise ValueError("同一人至少需要 2 张图片；动作不强制限制，但推荐包含露齿微笑/微笑/示齿。")
@@ -329,9 +520,11 @@ def validate_uploads(uploads: list[UploadedImage], *, max_images: int) -> None:
         raise ValueError(f"同一人最多上传 {max_images} 张图片。")
 
 
-def build_public_report(report: Mapping[str, Any], *, max_images: int = MAX_IMAGE_COUNT) -> dict[str, Any]:
+def build_public_report(report: Mapping[str, Any]) -> dict[str, Any]:
     analysis = dict(report.get("analysis") or {})
-    findings = patient_findings(analysis)
+    feature_results = feature_region_results(analysis)
+    top_attributions = feature_results[:5]
+    region_results = region_weight_distribution(feature_results)
     confidence = float(analysis.get("face_asymmetry_confidence") or 0.0)
     output = str(analysis.get("face_asymmetry_output") or "无法判断")
     detected_count = int(analysis.get("detected_image_count") or 0)
@@ -340,10 +533,8 @@ def build_public_report(report: Mapping[str, Any], *, max_images: int = MAX_IMAG
         "service": report.get("service"),
         "service_version": report.get("service_version"),
         "status": report.get("status"),
-        "analysis_method": "基于多张图片的面部左右对称性综合分析",
         "input_count": input_count,
         "status_counts": report.get("status_counts") or {},
-        "input_requirements": public_input_spec(max_images),
         "analysis": {
             "face_asymmetry_output": output,
             "face_asymmetry_confidence": round(confidence, 6),
@@ -352,80 +543,158 @@ def build_public_report(report: Mapping[str, Any], *, max_images: int = MAX_IMAG
             "detected_image_count": detected_count,
             "uploaded_image_count": input_count,
             "predicted_high_asymmetry": bool(analysis.get("predicted_high_asymmetry")),
-            "reason_description": patient_reason(analysis, findings),
-            "findings": findings,
-            "suggestion": patient_suggestion(analysis, findings),
-            "medical_disclaimer": "该结果是面部对称性辅助分析，不是临床诊断结论；如有口角歪斜、言语含糊、肢体无力等症状，应及时就医。",
+            "weighted_disease_score": analysis.get("weighted_disease_score"),
+            "score_threshold": analysis.get("score_threshold"),
+            "score_margin": analysis.get("score_margin"),
+            "triggered_feature_count": int(analysis.get("triggered_feature_count") or 0),
+            "total_rule_count": int(analysis.get("feature_count") or len(feature_results) or 21),
+            "region_results": region_results,
+            "top_attributions": top_attributions,
+            "feature_region_results": feature_results,
         },
         "images": [public_image_result(item) for item in report.get("images") or []],
     }
 
 
-def patient_findings(analysis: Mapping[str, Any]) -> list[dict[str, Any]]:
-    attributions = [
-        item
-        for item in analysis.get("feature_attributions") or []
-        if item.get("triggered")
-    ]
-    findings: list[dict[str, Any]] = []
-    for group in USER_FINDING_GROUPS:
-        related = [item for item in attributions if item.get("feature_name") in group["features"]]
-        if not related:
-            continue
+def feature_region_results(analysis: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """返回 21 个稳定特征的区域分类结果，按归因强度排序。"""
+    attributions = list(analysis.get("feature_attributions") or [])
+    sorted_attrs = sorted(
+        attributions,
+        key=lambda item: (
+            -float(bool(item.get("triggered"))),
+            -float(item.get("medical_priority_contribution") or 0.0),
+            -float(item.get("weighted_contribution") or 0.0),
+            -float(item.get("medical_priority_evidence_score") or 0.0),
+            -float(item.get("evidence_score") or 0.0),
+            -float(item.get("medical_priority_score") or 0.0),
+            -float(item.get("feature_weight") or 0.0),
+            str(item.get("rule_id") or ""),
+        ),
+    )
+    total_weight = sum(float(item.get("feature_weight") or 0.0) for item in sorted_attrs) or 1.0
+    results: list[dict[str, Any]] = []
+    for rank, attr in enumerate(sorted_attrs, start=1):
+        feature_name = str(attr.get("feature_name") or "")
+        interpretation = FEATURE_INTERPRETATIONS.get(feature_name, {})
+        region = interpretation.get("group", "unknown")
+        supporting = attr.get("supporting_image_values") or []
         roles = sorted(
             {
                 role_label(str(value.get("media_role") or "unknown"))
-                for item in related
-                for value in item.get("supporting_image_values") or []
+                for value in supporting
             }
         )
-        findings.append(
+        image_ids = sorted(
             {
-                "name": group["title"],
-                "description": group["description"],
-                "evidence_level": "主要表现" if len(related) >= 2 else "辅助表现",
-                "observed_in": roles,
-                "supporting_image_count": len(
-                    {
-                        str(value.get("image_id") or "")
-                        for item in related
-                        for value in item.get("supporting_image_values") or []
-                        if value.get("image_id")
-                    }
-                ),
+                str(value.get("image_id") or "")
+                for value in supporting
+                if value.get("image_id")
             }
         )
-    return findings
-
-
-def patient_reason(analysis: Mapping[str, Any], findings: list[Mapping[str, Any]]) -> str:
-    output = str(analysis.get("face_asymmetry_output") or "无法判断")
-    confidence = float(analysis.get("face_asymmetry_confidence") or 0.0)
-    detected_count = int(analysis.get("detected_image_count") or 0)
-    if detected_count <= 0:
-        return "本次上传图片未得到可用的人脸关键点结果，因此无法进行面部不对称分析。"
-    finding_text = "、".join(str(item["name"]) for item in findings[:4])
-    if not finding_text:
-        finding_text = "未见明显的口角、眼裂、眉部或面部轮廓左右差异"
-    if output == "人脸不对称性较高":
-        return (
-            f"系统综合 {detected_count} 张可识别人脸图片后，判断面部左右不对称性较高，"
-            f"置信度约 {confidence * 100.0:.1f}%。主要观察到：{finding_text}。"
+        feature_weight = float(attr.get("feature_weight") or 0.0)
+        contribution = float(attr.get("weighted_contribution") or 0.0)
+        medical_priority_contribution = float(attr.get("medical_priority_contribution") or 0.0)
+        evidence_score = float(attr.get("evidence_score") or 0.0)
+        medical_priority_evidence_score = float(attr.get("medical_priority_evidence_score") or 0.0)
+        results.append(
+            {
+                "rank": rank,
+                "feature_name": feature_name,
+                "region": region,
+                "region_label": REGION_LABELS.get(region, REGION_LABELS["unknown"]),
+                "title": interpretation.get("title", feature_name),
+                "physiological_meaning": interpretation.get("description", ""),
+                "feature_value": attr.get("feature_value"),
+                "threshold": attr.get("threshold"),
+                "triggered": bool(attr.get("triggered")),
+                "feature_weight": round(feature_weight, 6),
+                "feature_weight_percent": round(feature_weight / total_weight * 100.0, 2),
+                "weighted_contribution": round(contribution, 6),
+                "medical_priority_contribution": round(medical_priority_contribution, 6),
+                "evidence_score": round(evidence_score, 6),
+                "medical_priority_evidence_score": round(medical_priority_evidence_score, 6),
+                "evidence_ratio": attr.get("evidence_ratio"),
+                "weight_grade": attr.get("weight_grade"),
+                "medical_priority_score": attr.get("medical_priority_score"),
+                "medical_priority_label": attr.get("medical_priority_label"),
+                "medical_priority_multiplier": attr.get("medical_priority_multiplier"),
+                "calibration": {
+                    "combined_directional_auc": attr.get("combined_directional_auc"),
+                    "nonpatient_false_positive_rate": attr.get("nonpatient_false_positive_rate"),
+                    "volatility_score": attr.get("volatility_score"),
+                    "medical_priority_score": attr.get("medical_priority_score"),
+                    "medical_priority_multiplier": attr.get("medical_priority_multiplier"),
+                },
+                "observed_in": roles,
+                "supporting_image_ids": image_ids,
+                "supporting_image_count": len(image_ids),
+            }
         )
-    return (
-        f"系统综合 {detected_count} 张可识别人脸图片后，未达到高不对称判断标准，"
-        f"置信度约 {confidence * 100.0:.1f}%。本次主要观察结果为：{finding_text}。"
+    return results
+
+
+def region_weight_distribution(feature_results: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    total_weight = sum(float(item.get("feature_weight") or 0.0) for item in feature_results) or 1.0
+    total_contribution = sum(float(item.get("weighted_contribution") or 0.0) for item in feature_results) or 1.0
+    total_medical_priority_contribution = sum(float(item.get("medical_priority_contribution") or 0.0) for item in feature_results) or 1.0
+    for item in feature_results:
+        region = str(item.get("region") or "unknown")
+        bucket = grouped.setdefault(
+            region,
+            {
+                "region": region,
+                "region_label": REGION_LABELS.get(region, REGION_LABELS["unknown"]),
+                "feature_count": 0,
+                "triggered_feature_count": 0,
+                "total_feature_weight": 0.0,
+                "triggered_weight": 0.0,
+                "medical_priority_triggered_weight": 0.0,
+                "feature_names": [],
+            },
+        )
+        weight = float(item.get("feature_weight") or 0.0)
+        contribution = float(item.get("weighted_contribution") or 0.0)
+        medical_priority_contribution = float(item.get("medical_priority_contribution") or 0.0)
+        bucket["feature_count"] += 1
+        bucket["total_feature_weight"] += weight
+        bucket["triggered_weight"] += contribution
+        bucket["medical_priority_triggered_weight"] += medical_priority_contribution
+        bucket["feature_names"].append(str(item.get("feature_name") or ""))
+        if item.get("triggered"):
+            bucket["triggered_feature_count"] += 1
+    output: list[dict[str, Any]] = []
+    for bucket in grouped.values():
+        weight = float(bucket["total_feature_weight"])
+        contribution = float(bucket["triggered_weight"])
+        medical_priority_contribution = float(bucket["medical_priority_triggered_weight"])
+        output.append(
+            {
+                "region": bucket["region"],
+                "region_label": bucket["region_label"],
+                "feature_count": bucket["feature_count"],
+                "triggered_feature_count": bucket["triggered_feature_count"],
+                "total_feature_weight": round(weight, 6),
+                "feature_weight_percent": round(weight / total_weight * 100.0, 2),
+                "triggered_weight": round(contribution, 6),
+                "triggered_weight_percent": round(contribution / total_contribution * 100.0, 2) if total_contribution > 0 else 0.0,
+                "medical_priority_triggered_weight": round(medical_priority_contribution, 6),
+                "medical_priority_triggered_weight_percent": round(
+                    medical_priority_contribution / total_medical_priority_contribution * 100.0, 2
+                ) if total_medical_priority_contribution > 0 else 0.0,
+                "feature_names": bucket["feature_names"],
+            }
+        )
+    return sorted(
+        output,
+        key=lambda item: (
+            -float(item["medical_priority_triggered_weight"]),
+            -float(item["triggered_weight"]),
+            -float(item["total_feature_weight"]),
+            str(item["region"]),
+        ),
     )
-
-
-def patient_suggestion(analysis: Mapping[str, Any], findings: list[Mapping[str, Any]]) -> str:
-    if int(analysis.get("detected_image_count") or 0) <= 0:
-        return "请重新上传清晰、光线充足、单人脸图片。"
-    if analysis.get("predicted_high_asymmetry"):
-        return "建议结合本人实际症状进行人工复核；若同时出现口角歪斜、言语不清、肢体无力或突发不适，应及时就医。"
-    if not findings:
-        return "本次图片未见明显高不对称表现；如仍有疑虑，可补充露齿微笑、微笑、示齿和正脸图片后再次分析。"
-    return "本次未达到高不对称判断标准；如肉眼仍能看到口角或眼裂明显不对称，可补充更清晰的动作图片或进行人工复核。"
 
 
 def confidence_level(confidence: float) -> str:
@@ -468,7 +737,7 @@ def public_input_spec(max_images: int = MAX_IMAGE_COUNT) -> dict[str, Any]:
         "maximum_image_count": max_images,
         "role_required": False,
         "multiple_images_per_action": True,
-        "analysis_unit": "一次上传的 2 到 10 张图片会作为同一人的一组证据合并分析。",
+        "analysis_unit": f"一次上传的 {MIN_IMAGE_COUNT} 到 {max_images} 张图片会作为同一人的一组证据合并分析。",
         "image_requirements": [
             "同一人。",
             "单人脸。",
